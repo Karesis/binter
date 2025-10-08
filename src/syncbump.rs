@@ -93,7 +93,7 @@ impl<const MIN_ALIGN: usize> Drop for SyncBump<MIN_ALIGN> {
 }
 
 /// 經典的鍊表釋放算法，只是這裡用Rust風格的函數式來書寫
-/// ```
+/// ```C
 /// void dealloc_chunk_list(ChunkFooter* footer) {
 ///     while (footer != NULL && !is_empty(footer)) {
 ///         ChunkFooter* prev = footer->prev; // 1. 保存下一個節點
