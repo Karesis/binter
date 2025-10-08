@@ -1,13 +1,17 @@
-use std::{alloc::dealloc, ptr, sync::atomic::{AtomicPtr, AtomicUsize, Ordering as SyncOrdering}, usize::MAX};
-use std::iter;
-use std::sync::Mutex;
-use std::ptr::NonNull;
+use super::chunkfooter::{ChunkFooter, EMPTY_CHUNK};
 use core::cmp::Ordering as MemOrdering;
 use std::alloc::{Layout, alloc};
-use std::mem;
 use std::fmt;
+use std::iter;
+use std::mem;
+use std::ptr::NonNull;
 use std::slice;
-use super::chunkfooter::{ChunkFooter, EMPTY_CHUNK};
+use std::sync::Mutex;
+use std::{
+    alloc::dealloc,
+    ptr,
+    sync::atomic::{AtomicPtr, AtomicUsize, Ordering as SyncOrdering},
+};
 
 /// 常見系統的頁大小
 /// 申請大塊內存時以頁為單位可以加速malloc
@@ -47,7 +51,6 @@ const FIRST_ALLOCATION_GOAL: usize = 1 << 9;
 /// 很簡單，就是設計上的第一次大小減去開銷即可
 const DEFAULT_CHUNK_SIZE_WITHOUT_FOOTER: usize = FIRST_ALLOCATION_GOAL - OVERHEAD;
 
-
 /// 線程安全的 Bump Allocator
 /// 編譯器可以自動推斷出這個結構體是Sync的，
 /// 同時就會自動滿足Send的條件
@@ -58,7 +61,7 @@ pub struct SyncBump<const MIN_ALIGN: usize = 1> {
 
     /// 分配上限。`usize::MAX` 表示無上限。
     allocation_limit: AtomicUsize,
-    
+
     /// 用於慢速路徑（分配新Chunk）的鎖，防止多個線程同時分配新Chunk。
     slow_path_lock: std::sync::Mutex<()>,
 }
@@ -75,11 +78,7 @@ impl<const MIN_ALIGN: usize> Default for SyncBump<MIN_ALIGN> {
 impl<const MIN_ALIGN: usize> Drop for SyncBump<MIN_ALIGN> {
     fn drop(&mut self) {
         unsafe {
-            dealloc_chunk_list(
-                self
-                    .current_chunkfooter
-                    .load(SyncOrdering::SeqCst)
-            );
+            dealloc_chunk_list(self.current_chunkfooter.load(SyncOrdering::SeqCst));
         }
     }
 }
@@ -116,7 +115,7 @@ unsafe fn dealloc_chunk_list(footer: *mut ChunkFooter) {
     });
 }
 
-impl<const MIN_ALIGN: usize> SyncBump<MIN_ALIGN>  {
+impl<const MIN_ALIGN: usize> SyncBump<MIN_ALIGN> {
     /// 創建一個強制使用 MIN_ALIGN 作為最小對齊的 SyncBump。
     /// 對於非預設對齊的情況，必須使用此建構子。
     pub fn with_min_align() -> Self {
@@ -154,7 +153,7 @@ impl<const MIN_ALIGN: usize> SyncBump<MIN_ALIGN>  {
         if capacity == 0 {
             return Ok(SyncBump {
                 current_chunkfooter: AtomicPtr::new(unsafe { EMPTY_CHUNK.get_ptr() }),
-                allocation_limit: AtomicUsize::new(MAX),
+                allocation_limit: AtomicUsize::new(usize::MAX),
                 slow_path_lock: Mutex::new(()),
             });
         }
@@ -172,13 +171,16 @@ impl<const MIN_ALIGN: usize> SyncBump<MIN_ALIGN>  {
 
         Ok(SyncBump {
             current_chunkfooter: AtomicPtr::new(chunk_footer.as_ptr()),
-            allocation_limit: AtomicUsize::new(MAX),
-            slow_path_lock: Mutex::new(())
+            allocation_limit: AtomicUsize::new(usize::MAX),
+            slow_path_lock: Mutex::new(()),
         })
     }
 
     // 驻留一个字符串
     #[inline(always)]
+    // Clippy 警告我们从 &self 返回 &mut str，但这对于一个分配器是常见且安全的操作。
+    // 我们返回的是一块全新的内存，而不是对 SyncBump 内部结构的可变引用。
+    #[allow(clippy::mut_from_ref)]
     pub fn alloc_str(&self, src: &str) -> &mut str {
         let buffer = self.alloc_slice_copy(src.as_bytes());
         unsafe {
@@ -201,21 +203,18 @@ impl<const MIN_ALIGN: usize> SyncBump<MIN_ALIGN>  {
         }
     }
 
-    fn try_alloc_layout_fast(
-        &self,
-        layout: Layout,
-    ) -> Option<NonNull<u8>> {
+    fn try_alloc_layout_fast(&self, layout: Layout) -> Option<NonNull<u8>> {
         // 步驟 1: 原子性地讀取當前 chunk 的指針。
         // 使用 Acquire 來確保如果我們看到了新 chunk，那麼它的內容也對我們可見。
         let chunk_ptr = self.current_chunkfooter.load(SyncOrdering::Acquire);
-        
+
         // 如果是哨兵 chunk，它沒有容量，直接走慢速路徑。
         if unsafe { (*chunk_ptr).is_empty() } {
             return None;
         }
 
         let chunk_ref = unsafe { &*chunk_ptr };
-        let start = chunk_ref.bottom.as_ptr(); 
+        let start = chunk_ref.bottom.as_ptr();
 
         // --- CAS 迴圈開始 ---
         // 這是一個樂觀鎖：我們樂觀地認為我們可以在沒有衝突的情況下完成分配。
@@ -236,17 +235,21 @@ impl<const MIN_ALIGN: usize> SyncBump<MIN_ALIGN>  {
                     ptr.wrapping_sub(aligned_size)
                 }
                 MemOrdering::Equal => {
-                    let aligned_size = unsafe { round_up_to_unchecked(layout.size(), layout.align()) };
+                    let aligned_size =
+                        unsafe { round_up_to_unchecked(layout.size(), layout.align()) };
                     if aligned_size > (ptr as usize).wrapping_sub(start as usize) {
                         return None;
                     }
                     ptr.wrapping_sub(aligned_size)
                 }
                 MemOrdering::Greater => {
-                    let aligned_size = unsafe { round_up_to_unchecked(layout.size(), layout.align()) };
+                    let aligned_size =
+                        unsafe { round_up_to_unchecked(layout.size(), layout.align()) };
                     let aligned_ptr_candidate = round_mut_ptr_down_to(ptr, layout.align());
-                    if aligned_ptr_candidate < start 
-                    || aligned_size > (aligned_ptr_candidate as usize).wrapping_sub(start as usize) {
+                    if aligned_ptr_candidate < start
+                        || aligned_size
+                            > (aligned_ptr_candidate as usize).wrapping_sub(start as usize)
+                    {
                         return None;
                     }
                     aligned_ptr_candidate.wrapping_sub(aligned_size)
@@ -256,37 +259,32 @@ impl<const MIN_ALIGN: usize> SyncBump<MIN_ALIGN>  {
             // 步驟 4: 執行 CAS 操作 (Compare-and-Exchange)。
             // 這是原子性的「讀-改-寫」。
             // 我們嘗試將 `top` 指針從我們剛剛讀到的 `ptr` 值，更新為我們計算出的 `aligned_ptr` 值。
-            match chunk_ref
-                .top
-                .compare_exchange(
-                ptr,                     // 我們期望的當前值 (if top == ptr)
-                aligned_ptr,                 // 我們想要寫入的新值 (then top = aligned_ptr)
-                SyncOrdering::AcqRel,    // 成功時的 ordering
-                SyncOrdering::Acquire,   // 失敗時的 ordering
-                ) {
-                    Ok(_) => {
-                        // 成功！沒有其他線程在我們計算期間修改 `top` 指針。
-                        // 我們成功地 "搶" 到了這塊內存。
-                        // `aligned_ptr` 現在指向我們分配到的內存的起始位置。
-                        return Some(unsafe { NonNull::new_unchecked(aligned_ptr) });
-                    }
-                    Err(_) => {
-                        // 失敗！有其他線程搶先修改了 `top` 指針。
-                        // `compare_exchange` 失敗了，但它不會做任何修改。
-                        // 我們什麼都不用做，直接進入下一次 `loop`，
-                        // 使用被更新過的 `top` 值重新開始我們的計算。
-                        continue;
-                    }
+            match chunk_ref.top.compare_exchange(
+                ptr,                   // 我們期望的當前值 (if top == ptr)
+                aligned_ptr,           // 我們想要寫入的新值 (then top = aligned_ptr)
+                SyncOrdering::AcqRel,  // 成功時的 ordering
+                SyncOrdering::Acquire, // 失敗時的 ordering
+            ) {
+                Ok(_) => {
+                    // 成功！沒有其他線程在我們計算期間修改 `top` 指針。
+                    // 我們成功地 "搶" 到了這塊內存。
+                    // `aligned_ptr` 現在指向我們分配到的內存的起始位置。
+                    return Some(unsafe { NonNull::new_unchecked(aligned_ptr) });
                 }
+                Err(_) => {
+                    // 失敗！有其他線程搶先修改了 `top` 指針。
+                    // `compare_exchange` 失敗了，但它不會做任何修改。
+                    // 我們什麼都不用做，直接進入下一次 `loop`，
+                    // 使用被更新過的 `top` 值重新開始我們的計算。
+                    continue;
+                }
+            }
         }
     }
 
     #[inline(never)]
     #[cold]
-    fn alloc_layout_slow(
-        &self,
-        layout: Layout,
-    ) -> Option<NonNull<u8>> {
+    fn alloc_layout_slow(&self, layout: Layout) -> Option<NonNull<u8>> {
         // 步驟 1: 獲取鎖，以獨占的方式進入慢速路徑。
         // 任何時候，只有一個線程能拿到鎖並繼續執行。
         // 其他線程會在這裡等待。
@@ -356,7 +354,8 @@ impl<const MIN_ALIGN: usize> SyncBump<MIN_ALIGN>  {
             // 步驟 4: 安全地發布 (Publish) 新的 Chunk
             // 使用 store 和 Release 語義，將新的 Chunk 地址原子性地更新到全局指針。
             // 這一步確保了其他所有線程都能看到這個全新的、初始化完整的 Chunk。
-            self.current_chunkfooter.store(new_footer_ptr.as_ptr(), SyncOrdering::Release);
+            self.current_chunkfooter
+                .store(new_footer_ptr.as_ptr(), SyncOrdering::Release);
 
             // And then we can rely on `tray_alloc_layout_fast` to allocate
             // space within this chunk.
@@ -393,7 +392,7 @@ impl<const MIN_ALIGN: usize> SyncBump<MIN_ALIGN>  {
 
         // 步驟 2: 調用我們剛才改造好的、線程安全的 `allocated_bytes`
         let allocated = self.allocated_bytes();
-        
+
         // 步驟 3: 執行純計算
         if allocated > limit {
             None
@@ -425,7 +424,7 @@ impl<const MIN_ALIGN: usize> SyncBump<MIN_ALIGN>  {
     pub fn allocation_limit(&self) -> Option<usize> {
         match self.allocation_limit.load(SyncOrdering::Acquire) {
             usize::MAX => None,
-            limit => Some(limit)
+            limit => Some(limit),
         }
     }
 
@@ -438,14 +437,12 @@ impl<const MIN_ALIGN: usize> SyncBump<MIN_ALIGN>  {
         // 和bump創建時候指定的對齊要求
         // 以及這個函數調用所請求的align要求（requested）
         // 之間取得一個最大值
-        let align = CHUNK_ALIGN
-            .max(MIN_ALIGN)
-            .max(requested_layout.align());
+        let align = CHUNK_ALIGN.max(MIN_ALIGN).max(requested_layout.align());
 
         // 如果提供了就用提供的，沒有就用默認的
         let mut new_size_without_footer =
             new_size_without_footer.unwrap_or(DEFAULT_CHUNK_SIZE_WITHOUT_FOOTER);
-        
+
         // 這裡也是一個“取最大”的操作
         // 確保要求的和默認的同時滿足
         let requested_size =
@@ -541,13 +538,14 @@ impl<const MIN_ALIGN: usize> SyncBump<MIN_ALIGN>  {
             )
         };
 
-        Some(unsafe {
-            NonNull::new_unchecked(footer_ptr)
-        })
+        Some(unsafe { NonNull::new_unchecked(footer_ptr) })
     }
 
     /// Whether a request to allocate a new chunk with a given size for a given
     /// requested layout will fit under the allocation limit set on a `Bump`.
+    // Clippy 警告我们从 &self 返回 &mut [T]，理由同 alloc_str。
+    // 这是安全的，因为我们返回的是新分配的、具有独占访问权的内存片。
+    #[allow(clippy::mut_from_ref)]
     fn chunk_fits_under_limit(
         allocation_limit_remaining: Option<usize>,
         new_chunk_memory_details: NewChunkMemoryDetails,
@@ -560,6 +558,7 @@ impl<const MIN_ALIGN: usize> SyncBump<MIN_ALIGN>  {
     }
 
     #[inline(always)]
+    #[allow(clippy::mut_from_ref)]
     pub fn alloc_slice_copy<T>(&self, src: &[T]) -> &mut [T]
     where
         T: Copy,

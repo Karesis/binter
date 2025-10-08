@@ -1,5 +1,5 @@
-mod syncbump;
 mod chunkfooter;
+mod syncbump;
 
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -66,7 +66,7 @@ impl<'bump, const MIN_ALIGN: usize> Interner<'bump, MIN_ALIGN> {
         // 4. 確認沒有，執行真正的分配和插入。
         let id = write_guard.vec.len() as u32;
         let symbol = Symbol(id);
-        
+
         // 使用 arena 分配一個生命週期為 'bump 的字符串
         let interned_str = self.arena.alloc_str(s);
 
@@ -87,7 +87,16 @@ impl<'bump, const MIN_ALIGN: usize> Interner<'bump, MIN_ALIGN> {
 
     /// 返回池中獨立字符串的數量。
     pub fn len(&self) -> usize {
-        self.data.read().expect("RwLock poisoned during read").vec.len()
+        self.data
+            .read()
+            .expect("RwLock poisoned during read")
+            .vec
+            .len()
+    }
+
+    /// 检查池中是否没有任何字符串。
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// 返回 Interner 底層 Arena 已分配的總內存字節數。
@@ -114,7 +123,7 @@ mod tests {
 
         // 验证解析回来的字符串和原始字符串相等
         assert_eq!(INTERNER.resolve(sym1), Some(s1));
-        
+
         // 验证长度
         assert_eq!(INTERNER.len(), 1);
     }
@@ -165,8 +174,8 @@ mod tests {
 
         // 一些待测试的字符串，包含很多重复项
         let strings_to_intern = vec![
-            "apple", "banana", "orange", "apple", "grape", "banana",
-            "kiwi", "apple", "mango", "orange", "grape", "papaya"
+            "apple", "banana", "orange", "apple", "grape", "banana", "kiwi", "apple", "mango",
+            "orange", "grape", "papaya",
         ];
 
         // 启动一个线程作用域
@@ -195,7 +204,7 @@ mod tests {
         let sym_apple1 = INTERNER.intern("apple");
         let sym_apple2 = INTERNER.intern("apple");
         assert_eq!(sym_apple1, sym_apple2);
-        
+
         // 3. 验证所有独立字符串都能被正确解析
         assert_eq!(INTERNER.resolve(INTERNER.intern("apple")), Some("apple"));
         assert_eq!(INTERNER.resolve(INTERNER.intern("papaya")), Some("papaya"));
