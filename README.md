@@ -3,7 +3,6 @@
 [![Crates.io](https://img.shields.io/crates/v/binter.svg)](https://crates.io/crates/binter)
 [![Docs.rs](https://docs.rs/binter/badge.svg)](https://docs.rs/binter)
 [![License](https://img.shields.io/crates/l/binter.svg)](https://github.com/Karesis/binter/blob/main/LICENSE-MIT)
-[![Build Status](https://github.com/Karesis/binter/actions/workflows/rust.yml/badge.svg)](https://github.com/Karesis/binter/actions)
 
 A high-performance, thread-safe string interner backed by a concurrent bump allocator.
 
@@ -31,7 +30,7 @@ Or add it manually:
 ```toml
 [dependencies]
 binter = "0.1.0"
-once_cell = "1.0" # Recommended for creating the global instance
+once_cell = "1.21.3" # Recommended for creating the global instance
 ```
 
 ### Usage Example
@@ -66,9 +65,15 @@ fn main() {
 
 ## 📜 Project Status & Background
 
-* **Origin**: `binter` was extracted from [Nyan](https://github.com/Karesis/nyan), a personal compiler project for a custom programming language. Its design and implementation have been validated in a real-world compiler setting.
-* **Current Stage**: This is an early-stage release (`0.1.x`). While its core functionality is stable and performant within the context of the Nyan compiler, it has not yet been extensively benchmarked or tested in other application domains (e.g., web services, gaming).
-* **Testing**: The current test suite is minimal. Contributions in the form of new test cases, usage scenarios, and performance benchmarks are highly encouraged!
+### Origin
+
+Rather than being extracted from a single project, `binter`'s design is the culmination of experience gained from prototyping and rewriting several compiler versions for the planned [Nyan programming language](https://github.com/Karesis/nyan-lang). It was developed to be a robust, reusable component for language tooling.
+
+### Application & Current Stage
+
+`binter`'s first concrete application is the [cact compiler](https://github.com/Karesis/cact), a work-in-progress compiler for a subset of C developed for a university course on Compiler Principles.
+
+While the design has been refined through extensive iteration, the library itself is an early-stage release (`0.1.x`). It has not yet been extensively benchmarked in domains outside of compilers (e.g., web services, gaming). Contributions for more test cases and performance benchmarks are highly welcome!
 
 ## License
 
