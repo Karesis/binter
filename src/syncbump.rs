@@ -1,3 +1,12 @@
+// src/syncbump.rs
+
+//! A thread-safe bump allocator.
+//!
+//! The implementation of this allocator is heavily inspired by the `bumpalo` crate,
+//! created by the Rust core team. `bumpalo` is distributed under both the MIT and Apache-2.0 license.
+//! You can find the original source code and license here:
+//! https://github.com/fitzgen/bumpalo
+
 use super::chunkfooter::{ChunkFooter, EMPTY_CHUNK};
 use core::cmp::Ordering as MemOrdering;
 use std::alloc::{Layout, alloc};
