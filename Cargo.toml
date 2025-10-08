@@ -7,7 +7,7 @@ description = "A high-performance, thread-safe string interner backed by a concu
 repository = "https://github.com/Karesis/binter"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
-keywords = ["interner", "string", "bump", "allocator", "no_std", "compiler"]
+keywords = ["interner", "string", "bump", "allocator", "no_std"]
 categories = ["data-structures", "memory-management", "text-processing"]
 
 [dependencies]
