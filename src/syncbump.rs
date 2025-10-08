@@ -596,15 +596,6 @@ fn layout_from_size_align(size: usize, align: usize) -> Result<Layout, AllocErr>
 }
 
 #[inline]
-fn is_pointer_aligned_to<T>(pointer: *mut T, align: usize) -> bool {
-    debug_assert!(align.is_power_of_two());
-
-    let pointer = pointer as usize;
-    let pointer_aligned = round_down_to(pointer, align);
-    pointer == pointer_aligned
-}
-
-#[inline]
 const fn round_up_to(n: usize, divisor: usize) -> Option<usize> {
     debug_assert!(divisor > 0);
     debug_assert!(divisor.is_power_of_two());
@@ -627,28 +618,12 @@ unsafe fn round_up_to_unchecked(n: usize, divisor: usize) -> usize {
     }
 }
 
-#[inline]
-fn round_down_to(n: usize, divisor: usize) -> usize {
-    debug_assert!(divisor > 0);
-    debug_assert!(divisor.is_power_of_two());
-    n & !(divisor - 1)
-}
-
 /// Same as `round_down_to` but preserves pointer provenance.
 #[inline]
 fn round_mut_ptr_down_to(ptr: *mut u8, divisor: usize) -> *mut u8 {
     debug_assert!(divisor > 0);
     debug_assert!(divisor.is_power_of_two());
     ptr.wrapping_sub(ptr as usize & (divisor - 1))
-}
-
-#[inline]
-unsafe fn round_mut_ptr_up_to_unchecked(ptr: *mut u8, divisor: usize) -> *mut u8 {
-    debug_assert!(divisor > 0);
-    debug_assert!(divisor.is_power_of_two());
-    let aligned = unsafe { round_up_to_unchecked(ptr as usize, divisor) };
-    let delta = aligned - (ptr as usize);
-    unsafe { ptr.add(delta) }
 }
 
 #[inline(never)]

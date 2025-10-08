@@ -48,7 +48,7 @@ impl<'bump, const MIN_ALIGN: usize> Interner<'bump, MIN_ALIGN> {
     pub fn intern(&'bump self, s: &str) -> Symbol {
         // --- 快速讀取路徑 ---
         // 1. 獲取讀鎖，檢查字符串是否已存在。
-        let read_guard = self.data.read().unwrap();
+        let read_guard = self.data.read().expect("RwLock poisoned during read");
         if let Some(symbol) = read_guard.map.get(s) {
             return *symbol;
         }
@@ -80,14 +80,14 @@ impl<'bump, const MIN_ALIGN: usize> Interner<'bump, MIN_ALIGN> {
     /// 根據 Symbol，獲取其對應的字符串切片。
     /// 如果 Symbol 無效，返回 None。
     pub fn resolve(&self, symbol: Symbol) -> Option<&'bump str> {
-        let read_guard = self.data.read().unwrap();
+        let read_guard = self.data.read().expect("RwLock poisoned during read");
         // 將 u32 索引轉換為 usize，並安全地訪問 Vec
         read_guard.vec.get(symbol.0 as usize).copied()
     }
 
     /// 返回池中獨立字符串的數量。
     pub fn len(&self) -> usize {
-        self.data.read().unwrap().vec.len()
+        self.data.read().expect("RwLock poisoned during read").vec.len()
     }
 
     /// 返回 Interner 底層 Arena 已分配的總內存字節數。

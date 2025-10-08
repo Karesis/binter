@@ -86,6 +86,7 @@ impl EmptyChunkFooter {
 impl ChunkFooter {
     // 獲取當前chunk的指針位置（同時也是已分配內存的起始位置）
     // 和已分配內存大小
+    #[cfg(test)]
     fn get_current_top_and_allocated_size(
         &self
     ) -> (*const u8, usize) {
@@ -106,5 +107,44 @@ impl ChunkFooter {
     // 判斷該chunk是否是一個空的chunk
     pub(super) fn is_empty(&self) -> bool {
         ptr::eq(self, EMPTY_CHUNK.get().load(Ordering::SeqCst))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_empty_chunk_initialization_and_size() {
+        // --- 验证 EMPTY_CHUNK 的基本属性 ---
+
+        // 1. 获取指向静态 EMPTY_CHUNK 的引用
+        let empty_ref = unsafe { &*EMPTY_CHUNK.get_ptr() };
+
+        // 2. 验证 is_empty() 方法
+        // 这是 EMPTY_CHUNK 最重要的特性
+        assert!(empty_ref.is_empty(), "EMPTY_CHUNK should be identified as empty");
+
+        // 3. 验证初始分配字节数为 0
+        assert_eq!(empty_ref.allocated_bytes, 0, "EMPTY_CHUNK should have 0 allocated bytes");
+
+        // 4. 验证 prev 指针是否指向自身，形成一个哨兵节点
+        assert_eq!(empty_ref.prev.as_ptr(), empty_ref as *const _ as *mut _, "EMPTY_CHUNK's prev should point to itself");
+
+        // --- 调用 get_current_top_and_allocated_size 来消除警告并验证 ---
+
+        // 5. 调用我们想要测试的函数
+        // 因为测试在 debug 模式下运行，所以 #[cfg(debug_assertions)] 会生效
+        let (top_ptr, allocated_size) = empty_ref.get_current_top_and_allocated_size();
+        
+        // 6. 验证返回值
+        // 对于 EMPTY_CHUNK，top 指针应该指向 ChunkFooter 结构体的末尾（也就是自身）
+        let expected_top_ptr = empty_ref as *const _ as *const u8;
+        assert_eq!(top_ptr, expected_top_ptr, "Top pointer should point to the end of the footer itself");
+
+        // 7. 验证计算出的已用空间
+        // 计算方式是 footer 的地址减去 top 指针的地址。
+        // 对于 EMPTY_CHUNK，top 指针就等于 footer 的地址，所以已用空间应为 0。
+        assert_eq!(allocated_size, 0, "Allocated size within the empty chunk should be 0");
     }
 }
