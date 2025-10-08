@@ -1,12 +1,12 @@
-# binter
+# interb
 
-[![Crates.io](https://img.shields.io/crates/v/binter.svg)](https://crates.io/crates/binter)
-[![Docs.rs](https://docs.rs/binter/badge.svg)](https://docs.rs/binter)
-[![License](https://img.shields.io/crates/l/binter.svg)](https://github.com/Karesis/binter/blob/main/LICENSE-MIT)
+[![Crates.io](https://img.shields.io/crates/v/interb.svg)](https://crates.io/crates/interb)
+[![Docs.rs](https://docs.rs/interb/badge.svg)](https://docs.rs/interb)
+[![License](https://img.shields.io/crates/l/interb.svg)](https://github.com/Karesis/interb/blob/main/LICENSE-MIT)
 
 A high-performance, thread-safe string interner backed by a concurrent bump allocator.
 
-`binter` is designed to provide extremely fast string-to-symbol interning in a multi-threaded environment. It is especially useful for applications that frequently compare strings, such as compilers, databases, or game engines, by converting expensive string comparisons into trivial integer comparisons.
+`interb` is designed to provide extremely fast string-to-symbol interning in a multi-threaded environment. It is especially useful for applications that frequently compare strings, such as compilers, databases, or game engines, by converting expensive string comparisons into trivial integer comparisons.
 
 ---
 
@@ -19,26 +19,26 @@ A high-performance, thread-safe string interner backed by a concurrent bump allo
 
 ## 🚀 Quick Start
 
-Add `binter` to your `Cargo.toml`:
+Add `interb` to your `Cargo.toml`:
 
 ```bash
-cargo add binter
+cargo add interb
 ```
 
 Or add it manually:
 
 ```toml
 [dependencies]
-binter = "0.1.0"
+interb = "0.1.0"
 once_cell = "1.21.3" # Recommended for creating the global instance
 ```
 
 ### Usage Example
 
-`binter` is designed to be used as a **global static instance**. The `once_cell` crate is the idiomatic way to create such an instance.
+`interb` is designed to be used as a **global static instance**. The `once_cell` crate is the idiomatic way to create such an instance.
 
 ```rust
-use binter::Interner;
+use interb::Interner;
 use once_cell::sync::Lazy;
 
 // 1. Create a global, thread-safe Interner instance.
@@ -67,11 +67,11 @@ fn main() {
 
 ### Origin
 
-Rather than being extracted from a single project, `binter`'s design is the culmination of experience gained from prototyping and rewriting several compiler versions for the planned [Nyan programming language](https://github.com/Karesis/nyan-lang). It was developed to be a robust, reusable component for language tooling.
+Rather than being extracted from a single project, `interb`'s design is the culmination of experience gained from prototyping and rewriting several compiler versions for the planned [Nyan programming language](https://github.com/Karesis/nyan-lang). It was developed to be a robust, reusable component for language tooling.
 
 ### Application & Current Stage
 
-`binter`'s first concrete application is the [cact compiler](https://github.com/Karesis/cact), a work-in-progress compiler for a subset of C developed for a university course on Compiler Principles.
+`interb`'s first concrete application is the [cact compiler](https://github.com/Karesis/cact), a work-in-progress compiler for a subset of C developed for a university course on Compiler Principles.
 
 While the design has been refined through extensive iteration, the library itself is an early-stage release (`0.1.x`). It has not yet been extensively benchmarked in domains outside of compilers (e.g., web services, gaming). Contributions for more test cases and performance benchmarks are highly welcome!
 

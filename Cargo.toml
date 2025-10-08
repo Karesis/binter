@@ -1,10 +1,10 @@
 [package]
-name = "binter"
+name = "interb"
 version = "0.1.0"
 authors = ["Karesis<yangyifeng23@mails.ucas.ac.cn>"]
 edition = "2024"
 description = "A high-performance, thread-safe string interner backed by a concurrent bump allocator."
-repository = "https://github.com/Karesis/binter"
+repository = "https://github.com/Karesis/interb"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 keywords = ["interner", "string", "bump", "allocator", "no_std"]
