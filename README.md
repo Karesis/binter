@@ -29,7 +29,7 @@ Or add it manually:
 
 ```toml
 [dependencies]
-interb = "0.1.0"
+interb = "0.1.1"
 once_cell = "1.21.3" # Recommended for creating the global instance
 ```
 

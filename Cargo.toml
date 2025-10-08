@@ -1,6 +1,6 @@
 [package]
 name = "interb"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Karesis<yangyifeng23@mails.ucas.ac.cn>"]
 edition = "2024"
 description = "A high-performance, thread-safe string interner backed by a concurrent bump allocator."
@@ -12,3 +12,4 @@ categories = ["data-structures", "memory-management", "text-processing"]
 
 [dependencies]
 once_cell = "1.21.3"
+rustc-hash = "2.1.1"

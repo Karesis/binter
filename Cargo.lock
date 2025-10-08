@@ -4,9 +4,10 @@ version = 4
 
 [[package]]
 name = "interb"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "once_cell",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -14,3 +15,9 @@ name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
+
+[[package]]
+name = "rustc-hash"
+version = "2.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "357703d41365b4b27c590e3ed91eabb1b663f07c4c084095e60cbed4362dff0d"

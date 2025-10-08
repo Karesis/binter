@@ -3,6 +3,7 @@
 mod chunkfooter;
 mod syncbump;
 
+use rustc_hash::{FxHashMap, FxBuildHasher};
 use std::collections::HashMap;
 use std::sync::RwLock;
 use syncbump::SyncBump;
@@ -18,7 +19,7 @@ pub struct Symbol(u32);
 /// 把它們放在一個單獨的結構體中，可以讓鎖的管理更清晰。
 struct InternerData<'a> {
     /// 從 &str 快速查找到對應的 Symbol。
-    map: HashMap<&'a str, Symbol>,
+    map: FxHashMap<&'a str, Symbol>,
     /// 從 Symbol 快速查找到對應的 &str。
     /// Symbol 的 u32 值就是這個 Vec 的索引。
     vec: Vec<&'a str>,
@@ -39,7 +40,7 @@ impl<'bump, const MIN_ALIGN: usize> Interner<'bump, MIN_ALIGN> {
         Interner {
             arena: SyncBump::<MIN_ALIGN>::with_capacity(capacity * 10), // 假設平均字符串長度為10
             data: RwLock::new(InternerData {
-                map: HashMap::with_capacity(capacity),
+                map: HashMap::with_capacity_and_hasher(capacity, FxBuildHasher::default()),
                 vec: Vec::with_capacity(capacity),
             }),
         }
